@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User/Wallet record
+model User {
+  id              String    @id @default(uuid())
+  address         String    @unique
+  ensName         String?
+  
+  // Portfolio data (cached)
+  portfolioValue  Float?
+  pnlPercent      Float?
+  portfolioData   Json?     // Full portfolio snapshot
+  
+  // Analysis results
+  personalityType String?   // "Conservative DeFi Native"
+  riskScore       Int?      // 1-10
+  analysisData    Json?     // Full analysis object
+  
+  // Profile/bio data
+  bioData         Json?     // Timeline, badges, stats
+  
+  // Metadata
+  lastAnalyzed    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  similarWallets  SimilarityEdge[] @relation("UserSimilarities")
+  activities      Activity[]
+  
+  @@index([address])
+  @@index([personalityType])
+  @@index([riskScore])
+}
+
+// Similarity relationships between wallets
+model SimilarityEdge {
+  id              String   @id @default(uuid())
+  userId          String
+  similarAddress  String
+  score           Float    // 0.0 - 1.0 (cosine similarity)
+  
+  user            User     @relation("UserSimilarities", fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([userId, similarAddress])
+  @@index([userId, score])
+  @@index([similarAddress])
+}
+
+// Activity feed events from webhooks
+model Activity {
+  id              String   @id @default(uuid())
+  address         String
+  activityType    String   // "swap", "transfer", "bridge", etc
+  chain           String?
+  tokenIn         String?
+  tokenOut        String?
+  amountUsd       Float?
+  txHash          String?
+  metadata        Json?    // Full event data
+  
+  user            User?    @relation(fields: [address], references: [address], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([address, createdAt])
+  @@index([createdAt])
+  @@index([activityType])
+}
+
+// Tracked wallets for webhook subscriptions
+model TrackedWallet {
+  id              String   @id @default(uuid())
+  address         String   @unique
+  webhookId       String?  // Zerion webhook subscription ID
+  
+  trackedByCount  Int      @default(0) // How many users track this wallet
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([address])
+}
+
