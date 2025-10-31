@@ -1,4 +1,4 @@
-# PulseCheck Backend
+# Prism Backend
 
 AI-powered crypto portfolio analysis & social trading intelligence platform.
 
